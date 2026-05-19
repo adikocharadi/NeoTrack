@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Helpers
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    
+    function isValidId(id) {
+       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // Entity Validations
+    function isValidBaby(data, isUpdate) {
+      // Basic type and size validation
+      let baseValid = data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.babyId is string && data.babyId.size() > 0 && data.babyId.size() <= 128
+        && data.sex in ['male', 'female', 'other']
+        && data.status in ['admitted', 'discharged', 'expired', 'transferred'];
+
+      if (isUpdate) {
+        return baseValid && data.updatedAt == request.time;
+      } else {
+        return baseValid 
+          && data.keys().hasAll(['name', 'babyId', 'birthDateTime', 'gaWeeks', 'gaDays', 'birthWeight', 'sex', 'status', 'createdBy', 'createdAt', 'updatedAt'])
+          && data.keys().size() == 11
+          && data.birthDateTime is timestamp
+          && data.gaWeeks is int && data.gaWeeks >= 20 && data.gaWeeks <= 45
+          && data.gaDays is int && data.gaDays >= 0 && data.gaDays <= 6
+          && data.birthWeight is number && data.birthWeight > 0 && data.birthWeight <= 10000
+          && data.createdBy == request.auth.uid
+          && data.createdAt == request.time
+          && data.updatedAt == request.time;
+      }
+    }
+
+    function isValidWeightEntry(data, babyId) {
+       return data.keys().hasAll(['babyId', 'date', 'weight', 'notes', 'recordedBy', 'createdAt'])
+        && data.keys().size() == 6
+        && data.babyId == babyId
+        && data.date is string && data.date.size() == 10
+        && data.weight is number && data.weight > 0 && data.weight <= 10000
+        && data.notes is string && data.notes.size() <= 1000
+        && data.recordedBy == request.auth.uid
+        && data.createdAt == request.time;
+    }
+
+    // Collection Rules
+    match /babies/{babyDocId} {
+      allow create: if isSignedIn() && isValidId(babyDocId) && isValidBaby(incoming(), false);
+      
+      // List/Get: For NICU staff, only signed in users
+      allow read: if isSignedIn();
+      
+      allow update: if isSignedIn() && isValidId(babyDocId) && isValidBaby(incoming(), true) && (
+        // Action: Update Basic info/status
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'name', 'updatedAt'])
+        && incoming().name != ""
+        && incoming().createdBy == existing().createdBy // Immutable
+        && incoming().babyId == existing().babyId      // Immutable
+        && incoming().birthDateTime == existing().birthDateTime // Immutable
+      );
+
+      match /weights/{weightDocId} {
+        allow create: if isSignedIn() && isValidId(weightDocId) 
+          && isValidWeightEntry(incoming(), babyDocId)
+          && exists(/databases/$(database)/documents/babies/$(babyDocId));
+        
+        allow read: if isSignedIn();
+        
+        // Deletion only by the person who recorded it
+        allow delete: if isSignedIn() && existing().recordedBy == request.auth.uid;
+      }
+    }
+  }
+}

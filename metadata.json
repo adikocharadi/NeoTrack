@@ -1,0 +1,8 @@
+{
+  "name": "NeoTrack NICU",
+  "description": "A comprehensive mobile-first tracking application for NICU medical professionals to manage baby profiles and monitor daily weight progress with automatic clinical calculations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "Baby": {
+      "title": "Baby",
+      "description": "NICU baby profile",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the baby" },
+        "babyId": { "type": "string", "description": "Unique medical identifier" },
+        "birthDateTime": { "type": "string", "format": "date-time", "description": "Birth date and time" },
+        "gaWeeks": { "type": "integer", "description": "Gestational age weeks" },
+        "gaDays": { "type": "integer", "description": "Gestational age days" },
+        "birthWeight": { "type": "number", "description": "Birth weight in grams" },
+        "sex": { "type": "string", "enum": ["male", "female", "other"], "description": "Sex of the baby" },
+        "status": { "type": "string", "enum": ["admitted", "discharged", "expired", "transferred"], "description": "Current clinical status" },
+        "createdBy": { "type": "string", "description": "UID of the doctor who created the profile" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "babyId", "birthDateTime", "gaWeeks", "gaDays", "birthWeight", "sex", "status", "createdBy"]
+    },
+    "WeightEntry": {
+      "title": "WeightEntry",
+      "description": "Daily weight recording",
+      "type": "object",
+      "properties": {
+        "babyId": { "type": "string", "description": "Reference to the Baby document" },
+        "date": { "type": "string", "format": "date", "description": "Date of recording" },
+        "weight": { "type": "number", "description": "Weight in grams" },
+        "notes": { "type": "string", "description": "Additional clinical notes" },
+        "recordedBy": { "type": "string", "description": "UID of the person recording the weight" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["babyId", "date", "weight", "recordedBy"]
+    }
+  },
+  "firestore": {
+    "/babies": {
+      "schema": "Baby",
+      "description": "Collection of NICU babies"
+    },
+    "/babies/{docId}/weights": {
+      "schema": "WeightEntry",
+      "description": "Sub-collection of daily weights for a specific baby"
+    }
+  }
+}
